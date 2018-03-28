@@ -138,8 +138,8 @@ void UKF::Prediction(double delta_t) {
     nu_phidd = Xsig_aug(6,i);
 
     if(fabs(phi_dot)>0.001){
-      new_px = px + (sin(phi + phi_dot * delta_t) - sin(phi))/phi_dot + 0.5 * delta_t * delta_t * nu_a * cos(phi);
-      new_py = py + (-cos(phi + phi_dot * delta_t) + cos(phi))/phi_dot + 0.5 * delta_t * delta_t * nu_a * sin(phi);
+      new_px = px + v * (sin(phi + phi_dot * delta_t) - sin(phi))/phi_dot + 0.5 * delta_t * delta_t * nu_a * cos(phi);
+      new_py = py + v * (-cos(phi + phi_dot * delta_t) + cos(phi))/phi_dot + 0.5 * delta_t * delta_t * nu_a * sin(phi);
     }
     else{
       new_px = px + v * cos(phi) * delta_t + 0.5 * delta_t * delta_t * nu_a * cos(phi);
@@ -156,8 +156,10 @@ void UKF::Prediction(double delta_t) {
     Xsig_pred_(3,i) = new_phi;
     Xsig_pred_(4,i) = new_phi_dot;
   }
+  
   VectorXd mean(5);
   mean = Xsig_pred_ * weights_;
+  
   MatrixXd covariance(5,5);
   covariance.fill(0.0);
   for(int i = 0;i < 2 * n_aug_ + 1;i++){
@@ -220,6 +222,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   R << std_radr_ * std_radr_ , 0, 0,
        0, std_radphi_ * std_radphi_,0,
        0, 0, std_radrd_ * std_radrd_;
+
   MatrixXd Xsig_meas(3,2*n_aug_+1);
   for(int i = 0; i < 2 * n_aug_ + 1; i++){
     double rho, angle, rho_dot;
@@ -242,7 +245,6 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   
 
   VectorXd meas_mean(3);
-  
   meas_mean = Xsig_meas * weights_;
 
   MatrixXd meas_corv = MatrixXd(3,3);
@@ -252,13 +254,13 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   }
   meas_corv += R;
   
-  VectorXd x_pred = Xsig_pred_ * weights_;
+ 
   VectorXd y = meas_package.raw_measurements_ - meas_mean;
   
   MatrixXd Tc = MatrixXd(n_x_,3);
   Tc.fill(0.0);
   for(int i=0;i<2*n_aug_+1;i++){
-    Tc += weights_(i) * (Xsig_pred_.col(i) - x_pred) * (Xsig_meas.col(i) - meas_mean).transpose();
+    Tc += weights_(i) * (Xsig_pred_.col(i) - x_) * (Xsig_meas.col(i) - meas_mean).transpose();
   }
  
   MatrixXd K =  Tc * meas_corv.inverse();
